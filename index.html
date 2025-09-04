@@ -1,32 +1,90 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Поиск пользователя по IP, Email, Username и Email Hash</title>
-   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <title>User Search by IP, Email, Username, and Email Hash</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        body { font-family: Arial, sans-serif; }
-        .result { margin-top: 20px; }
-        .result div { margin: 5px 0; }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        form {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            margin: 20px auto;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        input[type="text"],
+        input[type="email"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #28a745;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        .result {
+            margin-top: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        /* Responsive Design */
+        @media (max-width: 600px) {
+            form {
+                padding: 15px;
+            }
+            button {
+                padding: 8px 12px;
+            }
+        }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 <body>
-    <h1>Поиск пользователя по IP, Email, Username и Email Hash</h1>
+    <h1>User Search by IP, Email, Username, and Email Hash</h1>
     <form id="search-form">
-        <label for="ip">IP адрес:</label>
-        <input type="text" id="ip" placeholder="Введите IP адрес">
-        <br>
+        <label for="ip">IP Address:</label>
+        <input type="text" id="ip" placeholder="Enter IP Address">
+        
         <label for="email">Email:</label>
-        <input type="email" id="email" placeholder="Введите Email">
-        <br>
+        <input type="email" id="email" placeholder="Enter Email">
+        
         <label for="username">Username:</label>
-        <input type="text" id="username" placeholder="Введите Username">
-        <br>
+        <input type="text" id="username" placeholder="Enter Username">
+        
         <label for="emailhash">Email Hash:</label>
-        <input type="text" id="emailhash" placeholder="Введите Email Hash">
-        <br>
-        <button type="submit">Поиск</button>
+        <input type="text" id="emailhash" placeholder="Enter Email Hash">
+
+        <button type="submit">Search</button>
     </form>
 
     <div class="result" id="result"></div>
@@ -42,23 +100,24 @@
                 var emailhash = $('#emailhash').val();
                 var resultDiv = $('#result');
 
-                // Очищаем предыдущие результаты
+                // Clear previous results
                 resultDiv.empty();
 
-                // Функция для отправки запросов
+                // Function to send requests
                 function checkStopForumSpam(query) {
+
                     return fetch(`https://api.stopforumspam.org/api?json&${query}`)
                         .then(response => response.json())
                         .catch(error => {
-                            console.error('Ошибка:', error);
-                            return { success: false, message: 'Ошибка при запросе к API' };
+                            console.error('Error:', error);
+                            return { success: false, message: 'Error while requesting the API' };
                         });
                 }
 
-                // Создаем массив для запросов
+                // Create an array for promises
                 var promises = [];
 
-                // Добавляем запросы в массив на основе введенных данных
+                // Add requests to the array based on the input
                 if (ip) {
                     promises.push(checkStopForumSpam(`ip=${ip}`));
                 }
@@ -72,23 +131,53 @@
                     promises.push(checkStopForumSpam(`emailhash=${emailhash}`));
                 }
 
-                // Выполняем все запросы
+                // Execute all requests
                 Promise.all(promises)
                     .then(results => {
-                        resultDiv.append('<div>Результаты поиска:</div>');
-                        results.forEach((result, index) => {
-                            let type;
-                            if (ip) { type = `IP (${ip})`; ip = null; }
-                            else if (email) { type = `Email (${email})`; email = null; }
-                            else if (username) { type = `Username (${username})`; username = null; }
-                            else if (emailhash) { type = `Email Hash (${emailhash})`; emailhash = null; }
+                        resultDiv.append('<div>Search Results:</div>');
+                        results.forEach((result) => {
+                            if (result.success) {
+                                if (result.ip) {
+                                    const ipData = result.ip;
+                                    resultDiv.append(`
+                                        <div>IP: ${ipData.value}<br/>
+                                        Appears in spam list: ${ipData.appears ? 'Yes' : 'No'}<br/>
+                                        Frequency: ${ipData.frequency}<br/>
+                                        Last seen: ${ipData.lastseen}<br/>
+                                        Country: ${ipData.country}<br/>
+                                        Confidence: ${ipData.confidence}%</div>
+                                    `);
+                                }
+                                if (result.email) {
+                                    const emailData = result.email;
+                                    resultDiv.append(`
+                                        <div>Email: ${emailData.value}<br/>
+                                        Appears in spam list: ${emailData.appears ? 'Yes' : 'No'}<br/>
+                                        Frequency: ${emailData.frequency}<br/>
+                                        Last seen: ${emailData.lastseen}</div>
+                                    `);
+                                }
+                                if (result.username) {
+                                    const usernameData = result.username;
+                                    resultDiv.append(`
+                                        <div>Username: ${usernameData.value}<br/>
+                                        Appears in spam list: ${usernameData.appears ? 'Yes' : 'No'}<br/>
+                                        Frequency: ${usernameData.frequency}<br/>
+                                        Last seen: ${usernameData.lastseen}</div>
+                                    `);
+                                }
+                                if (result.emailhash) {
+                                    const emailhashData = result.emailhash;
+                                    resultDiv.append(`
+                                        <div>Email Hash: ${emailhashData.value}<br/>
+                                        Appears in spam list: ${emailhashData.appears ? 'Yes' : 'No'}<br/>
+                                        Frequency: ${emailhashData.frequency}<br/>
 
-                            if (result.success && result.data && result.data.length > 0) {
-                                resultDiv.append(`<div>${type}: Спам</div>`);
-                            } else if (result.success) {
-                                resultDiv.append(`<div>${type}: Чист</div>`);
+                                        Last seen: ${emailhashData.lastseen}</div>
+                                    `);
+                                }
                             } else {
-                                resultDiv.append(`<div>${type}: ${result.message}</div>`);
+                                resultDiv.append(`<div>Error: ${result.message}</div>`);
                             }
                         });
                     });
