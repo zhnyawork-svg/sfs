@@ -57,6 +57,15 @@
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
+        .spam-status {
+            font-weight: bold;
+        }
+        .spam-yes {
+            color: red;
+        }
+        .spam-no {
+            color: green;
+        }
         /* Responsive Design */
         @media (max-width: 600px) {
             form {
@@ -101,11 +110,11 @@
                 var resultDiv = $('#result');
 
                 // Clear previous results
+
                 resultDiv.empty();
 
                 // Function to send requests
                 function checkStopForumSpam(query) {
-
                     return fetch(`https://api.stopforumspam.org/api?json&${query}`)
                         .then(response => response.json())
                         .catch(error => {
@@ -139,20 +148,24 @@
                             if (result.success) {
                                 if (result.ip) {
                                     const ipData = result.ip;
-                                    resultDiv.append(`
-                                        <div>IP: ${ipData.value}<br/>
-                                        Appears in spam list: ${ipData.appears ? 'Yes' : 'No'}<br/>
-                                        Frequency: ${ipData.frequency}<br/>
-                                        Last seen: ${ipData.lastseen}<br/>
-                                        Country: ${ipData.country}<br/>
-                                        Confidence: ${ipData.confidence}%</div>
-                                    `);
+                                    if (ipData.error) {
+                                        resultDiv.append(`<div>Error with IP: ${ipData.error}</div>`);
+                                    } else {
+                                        resultDiv.append(`
+                                            <div>IP: ${ipData.value}<br/>
+                                            Appears in spam list: <span class="spam-status ${ipData.appears ? 'spam-yes' : 'spam-no'}">${ipData.appears ? 'Yes' : 'No'}</span><br/>
+                                            Frequency: ${ipData.frequency}<br/>
+                                            Last seen: ${ipData.lastseen}<br/>
+                                            Country: ${ipData.country}<br/>
+                                            Confidence: ${ipData.confidence}%</div>
+                                        `);
+                                    }
                                 }
                                 if (result.email) {
                                     const emailData = result.email;
                                     resultDiv.append(`
                                         <div>Email: ${emailData.value}<br/>
-                                        Appears in spam list: ${emailData.appears ? 'Yes' : 'No'}<br/>
+                                        Appears in spam list: <span class="spam-status ${emailData.appears ? 'spam-yes' : 'spam-no'}">${emailData.appears ? 'Yes' : 'No'}</span><br/>
                                         Frequency: ${emailData.frequency}<br/>
                                         Last seen: ${emailData.lastseen}</div>
                                     `);
@@ -161,7 +174,8 @@
                                     const usernameData = result.username;
                                     resultDiv.append(`
                                         <div>Username: ${usernameData.value}<br/>
-                                        Appears in spam list: ${usernameData.appears ? 'Yes' : 'No'}<br/>
+                                        Appears in spam list: <span class="spam-status ${usernameData.appears ? 'spam-yes' : 'spam-no'}">${usernameData.appears ? 'Yes' : 'No'}</span><br/>
+
                                         Frequency: ${usernameData.frequency}<br/>
                                         Last seen: ${usernameData.lastseen}</div>
                                     `);
@@ -170,9 +184,8 @@
                                     const emailhashData = result.emailhash;
                                     resultDiv.append(`
                                         <div>Email Hash: ${emailhashData.value}<br/>
-                                        Appears in spam list: ${emailhashData.appears ? 'Yes' : 'No'}<br/>
+                                        Appears in spam list: <span class="spam-status ${emailhashData.appears ? 'spam-yes' : 'spam-no'}">${emailhashData.appears ? 'Yes' : 'No'}</span><br/>
                                         Frequency: ${emailhashData.frequency}<br/>
-
                                         Last seen: ${emailhashData.lastseen}</div>
                                     `);
                                 }
