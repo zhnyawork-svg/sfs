@@ -46,9 +46,14 @@
             border-radius: 4px;
             cursor: pointer;
             width: 100%;
+            position: relative;
         }
         button:hover {
             background-color: #218838;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
         }
         .result {
             margin-top: 20px;
@@ -57,14 +62,39 @@
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
-        .spam-status {
+        .spam-yes {
+            color: #dc3545;
             font-weight: bold;
         }
-        .spam-yes {
-            color: red;
-        }
         .spam-no {
-            color: green;
+            color: #28a745;
+            font-weight: bold;
+        }
+        .error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .searching {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .result-item {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        .result-item:last-child {
+            border-bottom: none;
         }
         /* Responsive Design */
         @media (max-width: 600px) {
@@ -93,10 +123,10 @@
         <label for="emailhash">Email Hash:</label>
         <input type="text" id="emailhash" placeholder="Enter Email Hash">
 
-        <button type="submit">Search</button>
+        <button type="submit" id="search-button">Search</button>
     </form>
 
-    <div class="result" id="result"></div>
+    <div class="result" id="result" style="display: none;"></div>
 
     <script>
         $(document).ready(function() {
@@ -108,10 +138,19 @@
                 var username = $('#username').val();
                 var emailhash = $('#emailhash').val();
                 var resultDiv = $('#result');
+                var searchButton = $('#search-button');
 
-                // Clear previous results
+                // Hide previous results
+                resultDiv.hide().empty();
 
-                resultDiv.empty();
+                // Validate that at least one field is filled
+                if (!ip && !email && !username && !emailhash) {
+                    resultDiv.html('<div class="error">Please enter at least one search criteria.</div>').show();
+                    return;
+                }
+
+                // Disable button and show searching text
+                searchButton.prop('disabled', true).html('<div class="searching"></div> Searching...');
 
                 // Function to send requests
                 function checkStopForumSpam(query) {
@@ -119,7 +158,7 @@
                         .then(response => response.json())
                         .catch(error => {
                             console.error('Error:', error);
-                            return { success: false, message: 'Error while requesting the API' };
+                            return { success: 0, error: 'Error while requesting the API' };
                         });
                 }
 
@@ -143,56 +182,104 @@
                 // Execute all requests
                 Promise.all(promises)
                     .then(results => {
-                        resultDiv.append('<div>Search Results:</div>');
-                        results.forEach((result) => {
-                            if (result.success) {
-                                if (result.ip) {
-                                    const ipData = result.ip;
-                                    if (ipData.error) {
-                                        resultDiv.append(`<div>Error with IP: ${ipData.error}</div>`);
-                                    } else {
-                                        resultDiv.append(`
-                                            <div>IP: ${ipData.value}<br/>
-                                            Appears in spam list: <span class="spam-status ${ipData.appears ? 'spam-yes' : 'spam-no'}">${ipData.appears ? 'Yes' : 'No'}</span><br/>
-                                            Frequency: ${ipData.frequency}<br/>
-                                            Last seen: ${ipData.lastseen}<br/>
-                                            Country: ${ipData.country}<br/>
-                                            Confidence: ${ipData.confidence}%</div>
-                                        `);
-                                    }
-                                }
-                                if (result.email) {
-                                    const emailData = result.email;
-                                    resultDiv.append(`
-                                        <div>Email: ${emailData.value}<br/>
-                                        Appears in spam list: <span class="spam-status ${emailData.appears ? 'spam-yes' : 'spam-no'}">${emailData.appears ? 'Yes' : 'No'}</span><br/>
-                                        Frequency: ${emailData.frequency}<br/>
-                                        Last seen: ${emailData.lastseen}</div>
-                                    `);
-                                }
-                                if (result.username) {
-                                    const usernameData = result.username;
-                                    resultDiv.append(`
-                                        <div>Username: ${usernameData.value}<br/>
-                                        Appears in spam list: <span class="spam-status ${usernameData.appears ? 'spam-yes' : 'spam-no'}">${usernameData.appears ? 'Yes' : 'No'}</span><br/>
-
-                                        Frequency: ${usernameData.frequency}<br/>
-                                        Last seen: ${usernameData.lastseen}</div>
-                                    `);
-                                }
-                                if (result.emailhash) {
-                                    const emailhashData = result.emailhash;
-                                    resultDiv.append(`
-                                        <div>Email Hash: ${emailhashData.value}<br/>
-                                        Appears in spam list: <span class="spam-status ${emailhashData.appears ? 'spam-yes' : 'spam-no'}">${emailhashData.appears ? 'Yes' : 'No'}</span><br/>
-                                        Frequency: ${emailhashData.frequency}<br/>
-                                        Last seen: ${emailhashData.lastseen}</div>
-                                    `);
-                                }
-                            } else {
-                                resultDiv.append(`<div>Error: ${result.message}</div>`);
+                        // Reset button
+                        searchButton.prop('disabled', false).html('Search');
+                        
+                        // Show results container
+                        resultDiv.show();
+                        
+                        // Check if we have any results
+                        if (results.length === 0) {
+                            resultDiv.append('<div class="error">No results found.</div>');
+                            return;
+                        }
+                        
+                        resultDiv.append('<h2>Search Results:</h2>');
+                        
+                        results.forEach((result, index) => {
+                            const resultItem = $('<div class="result-item"></div>');
+                            
+                            // Handle API errors
+                            if (result.error) {
+                                resultItem.append(`<div class="error">Error: ${result.error}</div>`);
+                                resultDiv.append(resultItem);
+                                return;
                             }
+                            
+                            // Handle invalid IP case
+                            if (result.success === 1 && result.ip && result.ip.error) {
+                                resultItem.append(`<div class="error">IP Error: ${result.ip.error}</div>`);
+                                resultDiv.append(resultItem);
+                                return;
+                            }
+                            
+                            // Process IP data
+                            if (result.ip && !result.ip.error) {
+                                const ipData = result.ip;
+                                const spamClass = ipData.appears ? 'spam-yes' : 'spam-no';
+                                resultItem.append(`
+                                    <div><strong>IP:</strong> ${ipData.value}</div>
+                                    <div><strong>Appears in spam list:</strong> <span class="${spamClass}">${ipData.appears ? 'Yes' : 'No'}</span></div>
+                                    <div><strong>Frequency:</strong> ${ipData.frequency}</div>
+                                    <div><strong>Last seen:</strong> ${ipData.lastseen || 'N/A'}</div>
+                                    <div><strong>Country:</strong> ${ipData.country || 'N/A'}</div>
+                                    <div><strong>Confidence:</strong> ${ipData.confidence || '0'}%</div>
+                                `);
+                            }
+                            
+                            // Process email data
+                            if (result.email) {
+                                const emailData = result.email;
+                                const spamClass = emailData.appears ? 'spam-yes' : 'spam-no';
+                                resultItem.append(`
+                                    <div><strong>Email:</strong> ${emailData.value}</div>
+                                    <div><strong>Appears in spam list:</strong> <span class="${spamClass}">${emailData.appears ? 'Yes' : 'No'}</span></div>
+                                    <div><strong>Frequency:</strong> ${emailData.frequency}</div>
+                                    <div><strong>Last seen:</strong> ${emailData.lastseen || 'N/A'}</div>
+                                `);
+                            }
+                            
+                            // Process username data
+                            if (result.username) {
+                                const usernameData = result.username;
+                                const spamClass = usernameData.appears ? 'spam-yes' : 'spam-no';
+                                resultItem.append(`
+                                    <div><strong>Username:</strong> ${usernameData.value}</div>
+                                    <div><strong>Appears in spam list:</strong> <span class="${spamClass}">${usernameData.appears ? 'Yes' : 'No'}</span></div>
+                                    <div><strong>Frequency:</strong> ${usernameData.frequency}</div>
+                                    <div><strong>Last seen:</strong> ${usernameData.lastseen || 'N/A'}</div>
+                                `);
+                            }
+                            
+                            // Process emailhash data
+                            if (result.emailhash) {
+                                const emailhashData = result.emailhash;
+                                const spamClass = emailhashData.appears ? 'spam-yes' : 'spam-no';
+                                resultItem.append(`
+                                    <div><strong>Email Hash:</strong> ${emailhashData.value}</div>
+                                    <div><strong>Appears in spam list:</strong> <span class="${spamClass}">${emailhashData.appears ? 'Yes' : 'No'}</span></div>
+                                    <div><strong>Frequency:</strong> ${emailhashData.frequency}</div>
+                                    <div><strong>Last seen:</strong> ${emailhashData.lastseen || 'N/A'}</div>
+                                `);
+                            }
+                            
+                            // If no data was found for this query
+                            if (resultItem.children().length === 0) {
+                                const queryType = index === 0 ? 'IP' : 
+                                                index === 1 ? 'Email' : 
+                                                index === 2 ? 'Username' : 'Email Hash';
+                                resultItem.append(`<div>No data found for the provided ${queryType}.</div>`);
+                            }
+                            
+                            resultDiv.append(resultItem);
                         });
+                    })
+                    .catch(error => {
+                        // Reset button
+                        searchButton.prop('disabled', false).html('Search');
+                        
+                        // Show error
+                        resultDiv.html(`<div class="error">An error occurred: ${error.message}</div>`).show();
                     });
             });
         });
